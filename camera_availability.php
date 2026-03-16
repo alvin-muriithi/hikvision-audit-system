@@ -238,6 +238,7 @@ $statusDistribution = [
                   <div class="panel-sub">Last 7 days – X axis: day of week, Y axis: % availability.</div>
                 </div>
               </div>
+              <div style="position:relative; height:280px;">
               <canvas id="weeklyTrendChart" aria-label="Weekly availability trend" role="img"></canvas>
             </div>
 
@@ -248,6 +249,7 @@ $statusDistribution = [
                   <div class="panel-sub">Pie chart of camera status: online, offline, warning, video loss, unknown.</div>
                 </div>
               </div>
+              <div style="position:relative; height:280px;">
               <canvas id="statusPieChart" aria-label="Camera status distribution" role="img"></canvas>
             </div>
           </section>
@@ -322,6 +324,7 @@ $statusDistribution = [
             options: {
               responsive: true,
               maintainAspectRatio: false,
+              resizeDelay: 100,
               scales: {
                 y: {
                   min: 0,
@@ -348,7 +351,7 @@ $statusDistribution = [
           ];
 
           new Chart(statusCtx, {
-            type: 'pie',
+            type: 'doughnut',
             data: {
               labels,
               datasets: [{
