@@ -1,15 +1,8 @@
 <?php
 declare(strict_types=1);
 
-/**
- * Camera polling service (run via Windows Task Scheduler or cron).
- *
- * Recommended schedule: every 3 minutes.
- * Example (CLI):
- *   php camera_poll.php
- */
-
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/db.php';
+//require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/hikvision_api.php';
 
 $startedAt = microtime(true);
@@ -26,6 +19,16 @@ try {
 
     $eventsInserted = 0;
     $updated = 0;
+
+    // For daily availability aggregation.
+    $statusCounts = [
+        'total' => 0,
+        'ONLINE' => 0,
+        'OFFLINE' => 0,
+        'WARNING' => 0,
+        'UNKNOWN' => 0,
+        'video_loss' => 0,
+    ];
 
     foreach ($cameras as $cam) {
         $cameraId = (int)$cam['id'];
@@ -124,6 +127,13 @@ try {
         ]);
         $updated++;
 
+        // Track counts for daily availability.
+        $statusCounts['total']++;
+        $statusCounts[$new['status']] = ($statusCounts[$new['status']] ?? 0) + 1;
+        if ($new['video_signal_status'] === 'VIDEO_LOSS') {
+            $statusCounts['video_loss']++;
+        }
+
         // Persist event (append-only) if any meaningful transition
         if ($eventType !== null && $eventDesc !== null) {
             $stmtEv = $pdo->prepare('INSERT INTO camera_events (camera_id, event_type, event_description) VALUES (?, ?, ?)');
@@ -133,6 +143,45 @@ try {
             $stmtCamEv = $pdo->prepare('UPDATE cameras SET last_event_type = ?, last_event_at = ? WHERE id = ?');
             $stmtCamEv->execute([$eventType, $now, $cameraId]);
         }
+    }
+
+    // Update daily availability aggregates.
+    if ($statusCounts['total'] > 0) {
+        $today = (new DateTimeImmutable('today'))->format('Y-m-d');
+
+        $stmtAgg = $pdo->prepare(
+            'INSERT INTO camera_availability_daily (
+                day_date,
+                total_polls,
+                total_cameras_sum,
+                online_cameras_sum,
+                offline_cameras_sum,
+                warning_cameras_sum,
+                unknown_cameras_sum,
+                offline_peak,
+                video_loss_events
+             ) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE
+                total_polls = total_polls + 1,
+                total_cameras_sum = total_cameras_sum + VALUES(total_cameras_sum),
+                online_cameras_sum = online_cameras_sum + VALUES(online_cameras_sum),
+                offline_cameras_sum = offline_cameras_sum + VALUES(offline_cameras_sum),
+                warning_cameras_sum = warning_cameras_sum + VALUES(warning_cameras_sum),
+                unknown_cameras_sum = unknown_cameras_sum + VALUES(unknown_cameras_sum),
+                offline_peak = GREATEST(offline_peak, VALUES(offline_peak)),
+                video_loss_events = video_loss_events + VALUES(video_loss_events)'
+        );
+
+        $stmtAgg->execute([
+            $today,
+            $statusCounts['total'],
+            $statusCounts['ONLINE'] ?? 0,
+            $statusCounts['OFFLINE'] ?? 0,
+            $statusCounts['WARNING'] ?? 0,
+            $statusCounts['UNKNOWN'] ?? 0,
+            $statusCounts['OFFLINE'] ?? 0,
+            $statusCounts['video_loss'] ?? 0,
+        ]);
     }
 
     $ms = (int)round((microtime(true) - $startedAt) * 1000);

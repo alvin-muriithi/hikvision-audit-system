@@ -6,36 +6,28 @@ require_once __DIR__ . '/config.php';
 try {
     $pdo = db();
 
-    $q = trim((string)($_GET['q'] ?? ''));
-    $event = strtoupper(trim((string)($_GET['event'] ?? '')));
+    $camera = trim((string)($_GET['camera'] ?? ''));
+    $from = trim((string)($_GET['from'] ?? ''));
+    $to = trim((string)($_GET['to'] ?? ''));
     $download = (string)($_GET['download'] ?? '');
-
-    $allowedEvent = [
-        '',
-        'CAMERA_OFFLINE',
-        'VIDEO_LOSS',
-        'COMMUNICATION_EXCEPTION',
-        'RECORDING_FAILED',
-        'DEVICE_RECONNECT',
-        'STATUS_CHANGE',
-        'VIDEO_RESTORED',
-        'COMMUNICATION_RECOVERED',
-        'RECORDING_RECOVERED',
-    ];
-    if (!in_array($event, $allowedEvent, true)) {
-        $event = '';
-    }
 
     $where = [];
     $params = [];
-    if ($q !== '') {
-        $where[] = '(c.camera_name LIKE ? OR c.ip_address LIKE ? OR c.nvr_name LIKE ? OR c.area LIKE ? OR e.event_description LIKE ?)';
-        $like = '%' . $q . '%';
-        $params = array_merge($params, [$like, $like, $like, $like, $like]);
+
+    if ($camera !== '') {
+        $where[] = '(c.camera_name LIKE ? OR c.ip_address LIKE ?)';
+        $like = '%' . $camera . '%';
+        $params[] = $like;
+        $params[] = $like;
     }
-    if ($event !== '') {
-        $where[] = 'e.event_type = ?';
-        $params[] = $event;
+
+    if ($from !== '') {
+        $where[] = 'e.created_at >= ?';
+        $params[] = $from;
+    }
+    if ($to !== '') {
+        $where[] = 'e.created_at <= ?';
+        $params[] = $to;
     }
 
     $sqlWhere = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
@@ -52,14 +44,14 @@ try {
          INNER JOIN cameras c ON c.id = e.camera_id
          $sqlWhere
          ORDER BY e.id DESC
-         LIMIT 2000"
+         LIMIT 5000"
     );
     $stmt->execute($params);
     $rows = $stmt->fetchAll();
 
     if ($download === 'csv') {
         header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="camera_audit_logs.csv"');
+        header('Content-Disposition: attachment; filename=\"camera_audit_logs.csv\"');
         $out = fopen('php://output', 'w');
         fputcsv($out, ['Log ID', 'Camera Name', 'IP Address', 'Event Type', 'Event Description', 'Timestamp']);
         foreach ($rows as $r) {
@@ -71,6 +63,9 @@ try {
 } catch (Throwable $t) {
     system_log('audit_logs error: ' . $t->getMessage(), 'ERROR');
     $rows = [];
+    $camera = $camera ?? '';
+    $from = $from ?? '';
+    $to = $to ?? '';
 }
 ?>
 <!doctype html>
@@ -88,13 +83,13 @@ try {
           <div class="logo"></div>
           <div>
             <div class="title">Camera Audit Trail</div>
-            <span class="sub">Events & Exceptions</span>
+            <span class="sub">Camera Logs</span>
           </div>
         </div>
         <nav class="nav">
           <a href="index.php">Dashboard</a>
-          <a href="cameras.php">Cameras</a>
-          <a class="active" href="audit_logs.php">Audit Logs <span class="pill">CSV</span></a>
+          <a href="camera_availability.php">Camera Availability</a>
+          <a class="active" href="audit_logs.php">Camera Logs <span class="pill">CSV</span></a>
         </nav>
         <div class="footer-note">
           This is an append-only audit trail generated from <span class="mono">camera_poll.php</span>.
@@ -104,8 +99,8 @@ try {
       <main class="main">
         <header class="header">
           <div>
-            <div class="h1">Audit Trail Logs</div>
-            <div class="hint">Showing the latest 2000 events. Use search to find a camera or incident.</div>
+            <div class="h1">Camera Logs</div>
+            <div class="hint">Search for a specific camera and download its logs for a chosen time period.</div>
           </div>
         </header>
 
@@ -113,32 +108,18 @@ try {
           <section class="panel">
             <div class="panel-head">
               <div>
-                <div class="panel-title">Search & Filter</div>
-                <div class="panel-sub">Download filtered results as CSV</div>
+                <div class="panel-title">Search &amp; Download</div>
+                <div class="panel-sub">Filter by camera name/IP and date range, then download results as CSV.</div>
               </div>
               <div class="panel-right">
-                <a class="badge" href="<?php echo e('audit_logs.php?download=csv&q=' . urlencode($q) . '&event=' . urlencode($event)); ?>"><span class="dot"></span>Download CSV</a>
+                <a class="badge" href="<?php echo e('audit_logs.php?download=csv&camera=' . urlencode($camera ?? '') . '&from=' . urlencode($from ?? '') . '&to=' . urlencode($to ?? '')); ?>"><span class="dot"></span>Download CSV</a>
               </div>
             </div>
 
             <form class="controls" method="get" action="audit_logs.php">
-              <input name="q" type="search" placeholder="Search camera name, IP, area, description" value="<?php echo e($q); ?>">
-              <select name="event">
-                <option value="">All event types</option>
-                <?php foreach ([
-                  'CAMERA_OFFLINE' => 'Camera Offline',
-                  'DEVICE_RECONNECT' => 'Device Reconnect',
-                  'VIDEO_LOSS' => 'Video Loss',
-                  'VIDEO_RESTORED' => 'Video Restored',
-                  'COMMUNICATION_EXCEPTION' => 'Communication Exception',
-                  'COMMUNICATION_RECOVERED' => 'Communication Recovered',
-                  'RECORDING_FAILED' => 'Recording Failed',
-                  'RECORDING_RECOVERED' => 'Recording Recovered',
-                  'STATUS_CHANGE' => 'Status Change',
-                ] as $k => $label): ?>
-                  <option value="<?php echo e($k); ?>" <?php echo $event === $k ? 'selected' : ''; ?>><?php echo e($label); ?></option>
-                <?php endforeach; ?>
-              </select>
+              <input name="camera" type="search" placeholder="Camera name or IP address" value="<?php echo e($camera ?? ''); ?>">
+              <input name="from" type="datetime-local" value="<?php echo e($from ?? ''); ?>">
+              <input name="to" type="datetime-local" value="<?php echo e($to ?? ''); ?>">
               <button type="submit">Apply</button>
             </form>
           </section>
