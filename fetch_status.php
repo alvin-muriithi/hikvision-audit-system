@@ -30,7 +30,7 @@ try {
     $params = [];
 
     if ($q !== '') {
-        $where[] = '(camera_name LIKE ? OR ip_address LIKE ? OR nvr_name LIKE ? OR area LIKE ?)';
+        $where[] = '(camera_name LIKE ? OR ip_address LIKE ? OR nvr_name LIKE ? OR nvr_area LIKE ?)';
         $like = '%' . $q . '%';
         $params[] = $like;
         $params[] = $like;
@@ -72,7 +72,7 @@ try {
             camera_name,
             ip_address,
             nvr_name,
-            area,
+            nvr_area AS area,
             status,
             video_signal_status,
             recording_status,
