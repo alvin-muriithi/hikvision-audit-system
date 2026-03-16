@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/config.php';
-
+// Legacy camera table view is no longer linked from the main navigation,
+// but kept for potential future use.
 ?>
 <!doctype html>
 <html lang="en">
@@ -24,8 +24,8 @@ require_once __DIR__ . '/config.php';
         </div>
         <nav class="nav">
           <a href="index.php">Dashboard</a>
-          <a class="active" href="cameras.php">Cameras <span class="pill">Search</span></a>
-          <a href="audit_logs.php">Audit Logs</a>
+          <a href="camera_availability.php">Camera Availability</a>
+          <a href="audit_logs.php">Camera Logs</a>
         </nav>
         <div class="footer-note">
           Add cameras into the <span class="mono">cameras</span> table to monitor them.
