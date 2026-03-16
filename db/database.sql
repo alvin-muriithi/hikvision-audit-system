@@ -1,3 +1,4 @@
+-- Active: 1718011205495@@127.0.0.1@3306@hikvision_audit
 -- Hikvision Camera Audit Trail Monitoring System
 -- Database: hikvision_audit
 
@@ -78,74 +79,57 @@ CREATE TABLE IF NOT EXISTS system_logs (
   INDEX idx_severity_time (severity, created_at)
 ) ENGINE=InnoDB;
 
+-- Seed 7 days of availability data for testing
+INSERT INTO camera_availability_daily
+  (day_date, total_polls, total_cameras_sum, online_cameras_sum,
+   offline_cameras_sum, warning_cameras_sum, unknown_cameras_sum,
+   offline_peak, video_loss_events)
+VALUES
+  (CURDATE() - INTERVAL 6 DAY, 480, 228000, 210960, 9120, 5700, 2220, 22, 14),
+  (CURDATE() - INTERVAL 5 DAY, 480, 228000, 213840, 7200, 4560, 2400, 18, 9),
+  (CURDATE() - INTERVAL 4 DAY, 480, 228000, 216240, 5760, 4320, 1680, 14, 6),
+  (CURDATE() - INTERVAL 3 DAY, 480, 228000, 218400, 4800, 3360, 1440, 11, 4),
+  (CURDATE() - INTERVAL 2 DAY, 480, 228000, 219120, 4320, 3120, 1440, 10, 7),
+  (CURDATE() - INTERVAL 1 DAY, 480, 228000, 220560, 3840, 2400, 1200,  9, 3),
+  (CURDATE(),                  480, 228000, 221280, 3360, 2160,  1200,  8, 2)
+AS new_vals
+ON DUPLICATE KEY UPDATE
+  total_polls = new_vals.total_polls,
+  total_cameras_sum = new_vals.total_cameras_sum,
+  online_cameras_sum = new_vals.online_cameras_sum,
+  offline_cameras_sum = new_vals.offline_cameras_sum,
+  warning_cameras_sum = new_vals.warning_cameras_sum,
+  unknown_cameras_sum = new_vals.unknown_cameras_sum,
+  offline_peak = new_vals.offline_peak,
+  video_loss_events = new_vals.video_loss_events;
 
--- Procedure to insert camera mock data (for testing)
-DELIMITER $$
-
-CREATE PROCEDURE generate_cameras()
-BEGIN
-  DECLARE i INT DEFAULT 1;
-
-  WHILE i <= 475 DO
-
-    INSERT INTO cameras (
-      camera_name,
-      ip_address,
-      nvr_name,
-      nvr_area,
-      status,
-      video_signal_status,
-      recording_status,
-      communication_status,
-      last_seen
-    )
-
-    VALUES (
-
-      CONCAT('Camera-', LPAD(i,3,'0')),
-
-      CONCAT('10.97.', FLOOR(RAND()*10)+10, '.', FLOOR(RAND()*200)+1),
-
-      CONCAT('NVR-', FLOOR(RAND()*10)+1),
-
-      ELT(FLOOR(RAND()*6)+1,
-        'Main Gate',
-        'Perimeter',
-        'Parking',
-        'Office Floor',
-        'Warehouse',
-        'Retail Area'
-      ),
-
-      ELT(FLOOR(RAND()*4)+1,
-        'ONLINE','OFFLINE','WARNING','UNKNOWN'
-      ),
-
-      ELT(FLOOR(RAND()*3)+1,
-        'OK','VIDEO_LOSS','UNKNOWN'
-      ),
-
-      ELT(FLOOR(RAND()*4)+1,
-        'OK','FAILED','NO_SCHEDULE','UNKNOWN'
-      ),
-
-      ELT(FLOOR(RAND()*3)+1,
-        'OK','EXCEPTION','UNKNOWN'
-      ),
-
-      NOW() - INTERVAL FLOOR(RAND()*120) MINUTE
-    );
-
-    SET i = i + 1;
-
-  END WHILE;
-
-END$$
-
-CALL generate_cameras();
-
-SELECT * FROM cameras;
-
-
-DELIMITER ;
+  from camera_events
+  
  SELECT version ();
+
+ -- Seed mock events from existing cameras (safe to run multiple times)
+INSERT INTO camera_events (camera_id, event_type, event_description, created_at)
+SELECT
+    c.id,
+    ELT(FLOOR(RAND()*6)+1,
+        'CAMERA_OFFLINE',
+        'DEVICE_RECONNECT',
+        'VIDEO_LOSS',
+        'VIDEO_RESTORED',
+        'COMMUNICATION_EXCEPTION',
+        'RECORDING_FAILED'
+    ),
+    ELT(FLOOR(RAND()*6)+1,
+        'Camera became unreachable (network offline / comm exception).',
+        'Camera reachable again (device reconnected).',
+        'Video signal loss detected on streaming channel.',
+        'Video signal restored on streaming channel.',
+        'Communication exception reported.',
+        'Recording failure detected.'
+    ),
+    NOW() - INTERVAL FLOOR(RAND()*10080) MINUTE  -- random time in last 7 days
+FROM cameras c
+-- Generate ~3 events per camera
+CROSS JOIN (SELECT 1 UNION SELECT 2 UNION SELECT 3) multiplier
+ORDER BY RAND()
+LIMIT 1000;
