@@ -49,6 +49,25 @@ CREATE TABLE IF NOT EXISTS camera_events (
     ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- Daily availability aggregates (for reporting)
+CREATE TABLE IF NOT EXISTS camera_availability_daily (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  day_date DATE NOT NULL,
+  total_polls INT UNSIGNED NOT NULL DEFAULT 0,
+  total_cameras_sum BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  online_cameras_sum BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  offline_cameras_sum BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  warning_cameras_sum BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  unknown_cameras_sum BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  offline_peak INT UNSIGNED NOT NULL DEFAULT 0,
+  video_loss_events BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  UNIQUE KEY uq_availability_day (day_date),
+  INDEX idx_availability_day (day_date)
+) ENGINE=InnoDB;
+
 -- System logs
 CREATE TABLE IF NOT EXISTS system_logs (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -58,3 +77,75 @@ CREATE TABLE IF NOT EXISTS system_logs (
 
   INDEX idx_severity_time (severity, created_at)
 ) ENGINE=InnoDB;
+
+
+-- Procedure to insert camera mock data (for testing)
+DELIMITER $$
+
+CREATE PROCEDURE generate_cameras()
+BEGIN
+  DECLARE i INT DEFAULT 1;
+
+  WHILE i <= 475 DO
+
+    INSERT INTO cameras (
+      camera_name,
+      ip_address,
+      nvr_name,
+      nvr_area,
+      status,
+      video_signal_status,
+      recording_status,
+      communication_status,
+      last_seen
+    )
+
+    VALUES (
+
+      CONCAT('Camera-', LPAD(i,3,'0')),
+
+      CONCAT('10.97.', FLOOR(RAND()*10)+10, '.', FLOOR(RAND()*200)+1),
+
+      CONCAT('NVR-', FLOOR(RAND()*10)+1),
+
+      ELT(FLOOR(RAND()*6)+1,
+        'Main Gate',
+        'Perimeter',
+        'Parking',
+        'Office Floor',
+        'Warehouse',
+        'Retail Area'
+      ),
+
+      ELT(FLOOR(RAND()*4)+1,
+        'ONLINE','OFFLINE','WARNING','UNKNOWN'
+      ),
+
+      ELT(FLOOR(RAND()*3)+1,
+        'OK','VIDEO_LOSS','UNKNOWN'
+      ),
+
+      ELT(FLOOR(RAND()*4)+1,
+        'OK','FAILED','NO_SCHEDULE','UNKNOWN'
+      ),
+
+      ELT(FLOOR(RAND()*3)+1,
+        'OK','EXCEPTION','UNKNOWN'
+      ),
+
+      NOW() - INTERVAL FLOOR(RAND()*120) MINUTE
+    );
+
+    SET i = i + 1;
+
+  END WHILE;
+
+END$$
+
+CALL generate_cameras();
+
+SELECT * FROM cameras;
+
+
+DELIMITER ;
+ SELECT version ();
