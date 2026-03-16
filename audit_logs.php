@@ -8,7 +8,7 @@ try {
 
     $camera = trim((string)($_GET['camera'] ?? ''));
     $from = trim((string)($_GET['from'] ?? ''));
-    $to = trim((string)($_GET['to'] ?? ''));
+    $to   = trim((string)($_GET['to']   ?? ''));   
     $download = (string)($_GET['download'] ?? '');
 
     $where = [];
@@ -22,10 +22,12 @@ try {
     }
 
     if ($from !== '') {
+        $from = str_replace('T', ' ', $from);
         $where[] = 'e.created_at >= ?';
         $params[] = $from;
     }
     if ($to !== '') {
+        $to = str_replace('T', ' ', $to);
         $where[] = 'e.created_at <= ?';
         $params[] = $to;
     }
@@ -51,7 +53,7 @@ try {
 
     if ($download === 'csv') {
         header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename=\"camera_audit_logs.csv\"');
+        header('Content-Disposition: attachment; filename="camera_audit_logs.csv"');
         $out = fopen('php://output', 'w');
         fputcsv($out, ['Log ID', 'Camera Name', 'IP Address', 'Event Type', 'Event Description', 'Timestamp']);
         foreach ($rows as $r) {
