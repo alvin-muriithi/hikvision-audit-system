@@ -1,7 +1,8 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/config.php';
+//require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/db.php';
 
 /**
  * Minimal Hikvision ISAPI client (Digest Authentication).
@@ -9,7 +10,7 @@ require_once __DIR__ . '/config.php';
  *
  * Notes:
  * - ISAPI responses are typically XML.
- * - Status schemas vary slightly by device/firmware; this client is defensive and falls back to UNKNOWN.
+ * - Status schemas vary slightly by device.
  */
 final class HikvisionApi
 {
