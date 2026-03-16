@@ -1,33 +1,30 @@
 <?php
 declare(strict_types=1);
 
-// --- Database ---
+//Database
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'hikvision_audit');
 define('DB_USER', 'root');
 define('DB_PASS', 'Alvinmuriithi!8');
 define('DB_CHARSET', 'utf8mb4');
 
-// --- Hikvision ISAPI credentials (Digest auth) ---
+//Hikvision ISAPI credentials
 define('HIK_USERNAME', 'admin');
 define('HIK_PASSWORD', '');
 
-
-// --- Polling / HTTP options ---
+// Hikvision API settings
 define('HIK_TIMEOUT_SECONDS', 8);
 define('HIK_CONNECT_TIMEOUT_SECONDS', 4);
 define('HIK_VERIFY_TLS', false); 
 
-
-// If your stream channel differs, adjust (common: 101 for main stream).
+//101 main stream monitorring
 define('HIK_STREAM_CHANNEL', '101');
 
 
-// --- Application timezone ---
+//Application timezone
 define('APP_TZ', 'Africa/Nairobi');
 date_default_timezone_set(APP_TZ);
 
-// Simple shared utilities
 function e(string $s): string
 {
     return htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -70,7 +67,7 @@ function system_log(string $message, string $severity = 'INFO'): void
         $stmt = $pdo->prepare('INSERT INTO system_logs (log_message, severity) VALUES (?, ?)');
         $stmt->execute([$message, $severity]);
     } catch (Throwable $t) {
-        // Last-resort: do not throw from logging.
+        
     }
 }
 
