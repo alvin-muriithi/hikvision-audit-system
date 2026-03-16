@@ -1,31 +1,29 @@
 <?php
 declare(strict_types=1);
 
-/**
- * Copy this file to your web root as-is, then edit the values below.
- * Keep this file OUT of any public web-accessible directory if possible.
- */
-
 // --- Database ---
-define('DB_HOST', '127.0.0.1');
+define('DB_HOST', 'localhost');
 define('DB_NAME', 'hikvision_audit');
 define('DB_USER', 'root');
-define('DB_PASS', '');
+define('DB_PASS', 'Alvinmuriithi!8');
 define('DB_CHARSET', 'utf8mb4');
 
 // --- Hikvision ISAPI credentials (Digest auth) ---
 define('HIK_USERNAME', 'admin');
-define('HIK_PASSWORD', 'your_password_here');
+define('HIK_PASSWORD', '');
+
 
 // --- Polling / HTTP options ---
 define('HIK_TIMEOUT_SECONDS', 8);
 define('HIK_CONNECT_TIMEOUT_SECONDS', 4);
-define('HIK_VERIFY_TLS', false); // ISAPI is usually HTTP on LAN. If HTTPS w/ trusted cert, set true.
+define('HIK_VERIFY_TLS', false); 
+
 
 // If your stream channel differs, adjust (common: 101 for main stream).
 define('HIK_STREAM_CHANNEL', '101');
 
-// --- App options ---
+
+// --- Application timezone ---
 define('APP_TZ', 'Africa/Nairobi');
 date_default_timezone_set(APP_TZ);
 
